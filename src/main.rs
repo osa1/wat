@@ -1,3 +1,5 @@
+mod cli;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs, io, process};
@@ -5,18 +7,37 @@ use std::{env, fs, io, process};
 use rayon::prelude::*;
 
 fn main() {
-    let wd = match env::current_dir() {
-        Ok(wd) => wd,
-        Err(err) => {
-            println!("Unable to get working directory: {}", err);
-            process::exit(1);
+    let cli::Args { mut files } = cli::parse();
+
+    if files.is_empty() {
+        match env::current_dir() {
+            Ok(wd) => files.push(wd.to_str().unwrap().to_owned()),
+            Err(err) => {
+                println!("Unable to get working directory: {}", err);
+                process::exit(1);
+            }
         }
-    };
+    }
 
-    let mut files = vec![];
-    walk_dir(wd, &mut files);
+    let mut wat_files = vec![];
 
-    files.par_iter().for_each(|in_path| {
+    for file in files {
+        match fs::metadata(&file) {
+            Ok(meta) => {
+                if meta.is_dir() {
+                    walk_dir(PathBuf::from(file), &mut wat_files);
+                } else {
+                    wat_files.push(PathBuf::from(file));
+                }
+            }
+            Err(err) => {
+                println!("Unable to get {} metadata: {}", file, err);
+                continue;
+            }
+        }
+    }
+
+    wat_files.par_iter().for_each(|in_path| {
         println!("{}", in_path.to_string_lossy());
 
         let out_path = {
