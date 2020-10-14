@@ -38,13 +38,13 @@ fn main() {
     }
 
     wat_files.par_iter().for_each(|in_path| {
-        println!("{}", in_path.to_string_lossy());
-
         let out_path = {
             let mut out_path = in_path.clone();
             let _ = out_path.set_extension("wat");
             out_path
         };
+
+        println!("{}", out_path.to_string_lossy());
 
         let output = Command::new("wasm2wat")
             .arg("--enable-all")
